@@ -132,7 +132,7 @@ const Home = () => {
       return
     }
 
-    if (!formData.passportNumber || !formData.fullName || !formData.panNumber) {
+    if (!formData.passportNumber || !formData.fullName || !formData.panNumber || !formData.email || !formData.phoneNumber) {
       Swal.fire({
         icon: 'error',
         title: 'Validation Error',
@@ -149,14 +149,115 @@ const Home = () => {
     setIsSubmitting(true)
     setCurrentStep(3)
     
-    setTimeout(() => {
-      console.log('Form Data Submitted:', {
-        documents: {
-          passport: passportFile.name,
-          pan: panFile.name
+    try {
+      // Format dates to DD/MM/YYYY format
+      const formatDate = (dateString) => {
+        if (!dateString) return ''
+        const date = new Date(dateString)
+        const day = String(date.getDate()).padStart(2, '0')
+        const month = String(date.getMonth() + 1).padStart(2, '0')
+        const year = date.getFullYear()
+        return `${day}/${month}/${year}`
+      }
+
+      const baseUrl = 'https://t9hr21z3-8000.inc1.devtunnels.ms'
+
+      // Use static URLs for passport and PAN card
+      const passportUrls = ["http://localhost:8000/static/passport_xxx.jpg"]
+      const panUrl = "http://localhost:8000/static/pancard_xxx.jpg"
+
+      // Prepare extracted data structure matching API format
+      const extractedData = {
+        passport: {
+          passport_number: formData.passportNumber || null,
+          name: formData.fullName || null,
+          nationality: formData.nationality || null,
+          dob: formatDate(formData.dateOfBirth) || null,
+          date_of_issue: formatDate(formData.passportIssueDate) || null,
+          date_of_expiry: formatDate(formData.passportExpiryDate) || null,
+          place_of_birth: formData.placeOfBirth || null,
+          place_of_issue: formData.passportIssuePlace || null,
+          sex: formData.gender ? formData.gender.charAt(0).toUpperCase() : null,
+          father_name: null,
+          mother_name: null,
+          spouse_name: null,
+          address: formData.address || null,
+          pin_code: null,
+          state: null,
+          old_passport_number: null,
+          old_passport_issue_date: null,
+          old_passport_issue_place: null,
+          file_number: null,
+          raw_text: ''
         },
-        formData
+        pan: {
+          pan_number: formData.panNumber || null,
+          name: formData.panName || null,
+          father_name: formData.panFatherName || null,
+          dob: null,
+          raw_text: ''
+        }
+      }
+
+      // Store data using /api/v1/store with static URLs
+      const storeFormData = new FormData()
+      
+      // passport_urls should be a JSON array string
+      storeFormData.append('passport_urls', JSON.stringify(passportUrls))
+      
+      // pan_url is a single URL string
+      storeFormData.append('pan_url', panUrl)
+      
+      // extracted_data as JSON string
+      storeFormData.append('extracted_data', JSON.stringify(extractedData))
+      
+      // Add email and mobileNo
+      storeFormData.append('email', formData.email)
+      storeFormData.append('mobileNo', formData.phoneNumber)
+
+      console.log('Storing data with static URLs:', {
+        passport_urls: passportUrls,
+        pan_url: panUrl,
+        extracted_data: extractedData,
+        email: formData.email,
+        mobileNo: formData.phoneNumber
       })
+
+      const response = await fetch(`${baseUrl}/api/v1/store`, {
+        method: 'POST',
+        body: storeFormData
+      })
+
+      if (!response.ok) {
+        let errorMessage = `HTTP error! status: ${response.status}`
+        try {
+          const errorData = await response.json()
+          console.error('Store API Error Response:', errorData)
+          // Handle different error response formats
+          if (errorData.detail) {
+            // FastAPI style errors
+            if (Array.isArray(errorData.detail)) {
+              errorMessage = errorData.detail.map(err => err.msg || JSON.stringify(err)).join(', ')
+            } else {
+              errorMessage = errorData.detail
+            }
+          } else if (errorData.message) {
+            errorMessage = errorData.message
+          } else if (errorData.error) {
+            errorMessage = errorData.error
+          } else {
+            errorMessage = JSON.stringify(errorData)
+          }
+        } catch (e) {
+          const text = await response.text()
+          console.error('Error response text:', text)
+          errorMessage = text || errorMessage
+        }
+        throw new Error(errorMessage)
+      }
+
+      const result = await response.json()
+      console.log('Store result:', result)
       
       setIsSubmitting(false)
       setShowSuccess(true)
@@ -196,7 +297,21 @@ const Home = () => {
           address: '',
         })
       }, 3000)
-    }, 1500)
+    } catch (error) {
+      console.error('Error submitting form:', error)
+      setIsSubmitting(false)
+      
+      Swal.fire({
+        icon: 'error',
+        title: 'Submission Failed',
+        text: error.message || 'Failed to submit application. Please try again.',
+        toast: true,
+        position: 'top-end',
+        showConfirmButton: false,
+        timer: 4000,
+        timerProgressBar: true
+      })
+    }
   }
 
   const handleDragOver = (e) => {
@@ -262,7 +377,7 @@ const Home = () => {
                       step.number
                     )}
                   </div>
-                  <span className={`mt-2 text-xs sm:text-sm font-medium whitespace-nowrap ${
+                  <span className={`hidden sm:block mt-2 text-xs sm:text-sm font-medium whitespace-nowrap ${
                     currentStep >= step.number ? 'text-blue-600' : 'text-gray-500'
                   }`}>
                     {step.label}
@@ -271,7 +386,7 @@ const Home = () => {
                 
                 {/* Connector Line */}
                 {index < steps.length - 1 && (
-                  <div className="h-0.5 mx-4 sm:mx-6 md:mx-8 bg-gray-300 relative" style={{ width: '120px', maxWidth: '150px' }}>
+                  <div className="h-0.5 mx-4 sm:mx-6 md:mx-8 bg-gray-300 relative w-[60px] sm:w-[70px] md:w-[100px] xl:w-[120px]" style={{maxWidth: '150px' }}>
                     <div className={`absolute inset-0 bg-blue-600 transition-all duration-500 ${
                       currentStep > step.number ? 'w-full' : 'w-0'
                     }`}></div>
@@ -332,13 +447,26 @@ const Home = () => {
                         <p className="text-sm font-medium text-gray-900">{passportFile.name}</p>
                         <p className="text-xs text-gray-500 mt-1">File uploaded successfully</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleFileRemove('passport')}
-                        className="text-sm text-red-600 hover:text-red-700 font-medium"
-                      >
-                        Remove File
-                      </button>
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleFileRemove('passport')}
+                          className="text-sm text-red-600 hover:text-red-700 font-medium px-3 py-1.5 border border-red-300 rounded-md hover:bg-red-50 transition-colors"
+                        >
+                          Remove File
+                        </button>
+                        <label className="cursor-pointer">
+                          <span className="text-sm text-blue-600 hover:text-blue-700 font-medium px-3 py-1.5 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors inline-block">
+                            Change File
+                          </span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/jpeg,image/png,application/pdf"
+                            onChange={(e) => e.target.files[0] && handleFileUpload('passport', e.target.files[0])}
+                          />
+                        </label>
+                      </div>
                     </div>
                   ) : (
                     <div>
@@ -389,13 +517,26 @@ const Home = () => {
                         <p className="text-sm font-medium text-gray-900">{panFile.name}</p>
                         <p className="text-xs text-gray-500 mt-1">File uploaded successfully</p>
                       </div>
-                      <button
-                        type="button"
-                        onClick={() => handleFileRemove('pan')}
-                        className="text-sm text-red-600 hover:text-red-700 font-medium"
-                      >
-                        Remove File
-                      </button>
+                      <div className="flex items-center justify-center gap-3">
+                        <button
+                          type="button"
+                          onClick={() => handleFileRemove('pan')}
+                          className="text-sm text-red-600 hover:text-red-700 font-medium px-3 py-1.5 border border-red-300 rounded-md hover:bg-red-50 transition-colors"
+                        >
+                          Remove File
+                        </button>
+                        <label className="cursor-pointer">
+                          <span className="text-sm text-blue-600 hover:text-blue-700 font-medium px-3 py-1.5 border border-blue-300 rounded-md hover:bg-blue-50 transition-colors inline-block">
+                            Change File
+                          </span>
+                          <input
+                            type="file"
+                            className="hidden"
+                            accept="image/jpeg,image/png,application/pdf"
+                            onChange={(e) => e.target.files[0] && handleFileUpload('pan', e.target.files[0])}
+                          />
+                        </label>
+                      </div>
                     </div>
                   ) : (
                     <div>
@@ -422,9 +563,12 @@ const Home = () => {
               </div>
             </div>
 
-            {/* Extract Data Button */}
+            {/* Go to Next Step Button */}
             {passportFile && panFile && !isDataExtracted && (
-              <div className="mt-6 flex justify-center">
+              <div className="mt-6 flex flex-col items-center">
+                <p className="text-sm text-gray-600 mb-4 text-center">
+                  Both documents have been uploaded successfully. Click below to proceed to the next step and review your information.
+                </p>
                 <button
                   type="button"
                   onClick={simulateDataExtraction}
@@ -437,14 +581,14 @@ const Home = () => {
                         <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
                         <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
                       </svg>
-                      Extracting Data...
+                      Processing...
                     </>
                   ) : (
                     <>
                       <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                       </svg>
-                      Extract Data Automatically
+                      Go to Next Step
                     </>
                   )}
                 </button>
