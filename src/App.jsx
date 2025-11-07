@@ -1,10 +1,16 @@
+import { HashRouter, Route, Routes } from 'react-router-dom'
 import './App.css'
+import Home from './pages/Home'
 
 function App() {
 
   return (
     <>
-    <h1>hi passport visa projects</h1>
+    <HashRouter>
+      <Routes>
+        <Route path="/" element={<Home/>} />
+      </Routes>
+    </HashRouter>
     </>
   )
 }
