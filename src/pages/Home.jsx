@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
+import { uploadDocuments, storeApplication } from '../services/api'
 
 const Home = () => {
   const navigate = useNavigate()
@@ -355,54 +356,8 @@ const Home = () => {
     setIsExtracting(true)
     
     try {
-      const baseUrl = 'http://visa.itfuturz.in'
-      
-      // Prepare FormData for upload API
-      const uploadFormData = new FormData()
-      // Append all passport files (can be multiple)
-      passportFiles.forEach((file) => {
-        uploadFormData.append('passport', file)
-      })
-      uploadFormData.append('pancard', panFile)
-
-      console.log('Calling upload API with files:', {
-        passport: passportFiles.map(f => f.name),
-        pancard: panFile.name
-      })
-
-      const response = await fetch(`${baseUrl}/api/v1/upload`, {
-        method: 'POST',
-        body: uploadFormData
-      })
-
-      if (!response.ok) {
-        let errorMessage = `HTTP error! status: ${response.status}`
-        try {
-          const errorData = await response.json()
-          console.error('Upload API Error Response:', errorData)
-          if (errorData.detail) {
-            if (Array.isArray(errorData.detail)) {
-              errorMessage = errorData.detail.map(err => err.msg || JSON.stringify(err)).join(', ')
-            } else {
-              errorMessage = errorData.detail
-            }
-          } else if (errorData.message) {
-            errorMessage = errorData.message
-          } else if (errorData.error) {
-            errorMessage = errorData.error
-          } else {
-            errorMessage = JSON.stringify(errorData)
-          }
-        } catch (e) {
-          const text = await response.text()
-          console.error('Error response text:', text)
-          errorMessage = text || errorMessage
-        }
-        throw new Error(errorMessage)
-      }
-
-      const result = await response.json()
-      console.log('Upload API Response:', result)
+      // Call API service
+      const result = await uploadDocuments(passportFiles, panFile)
       
       // Store the upload response for later use in store API
       setUploadResponse(result)
@@ -601,137 +556,8 @@ const Home = () => {
     setCurrentStep(3)
     
     try {
-      if (!uploadResponse) {
-        throw new Error('Upload response not found. Please upload documents again.')
-      }
-
-      // Format dates to DD/MM/YYYY format
-      const formatDate = (dateString) => {
-        if (!dateString) return null
-        const date = new Date(dateString)
-        const day = String(date.getDate()).padStart(2, '0')
-        const month = String(date.getMonth() + 1).padStart(2, '0')
-        const year = date.getFullYear()
-        return `${day}/${month}/${year}`
-      }
-
-      const baseUrl = 'http://visa.itfuturz.in'
-
-      // Get URLs from upload response
-      // Response structure: { passport_urls: [...], pan_url: "...", extracted_data: {...} }
-      let passportUrls = []
-      let panUrl = ''
-      
-      // Extract passport URLs
-      if (uploadResponse.passport_urls) {
-        passportUrls = Array.isArray(uploadResponse.passport_urls) 
-          ? uploadResponse.passport_urls 
-          : [uploadResponse.passport_urls]
-      }
-      
-      // Extract PAN URL
-      if (uploadResponse.pan_url) {
-        panUrl = uploadResponse.pan_url
-      }
-
-      // Validate URLs are present
-      if (passportUrls.length === 0 || !panUrl) {
-        console.error('URLs not found in response:', uploadResponse)
-        throw new Error('Failed to get document URLs from upload response')
-      }
-
-      // Prepare extracted data structure matching API format with updated form values
-      const extractedData = {
-        passport: {
-          passport_number: formData.passportNumber || null,
-          name: formData.fullName || null,
-          nationality: formData.nationality || null,
-          dob: formatDate(formData.dateOfBirth),
-          date_of_issue: formatDate(formData.passportIssueDate),
-          date_of_expiry: formatDate(formData.passportExpiryDate),
-          place_of_birth: formData.placeOfBirth || null,
-          place_of_issue: formData.passportIssuePlace || null,
-          sex: formData.gender ? formData.gender.charAt(0).toUpperCase() : null,
-          father_name: formData.passportFatherName || null,
-          mother_name: formData.passportMotherName || null,
-          spouse_name: formData.spouseName || null,
-          address: formData.address || null,
-          pin_code: formData.passportPinCode || null,
-          state: null,
-          old_passport_number: formData.oldPassportNumber || null,
-          old_passport_issue_date: formData.oldPassportIssueDate ? formatDate(formData.oldPassportIssueDate) : null,
-          old_passport_issue_place: formData.oldPassportIssuePlace || null,
-          file_number: formData.fileNumber || null,
-          raw_text: uploadResponse.extracted_data?.passport?.raw_text || ''
-        },
-        pan: {
-          pan_number: formData.panNumber || null,
-          name: formData.panName || null,
-          father_name: formData.panFatherName || null,
-          dob: formData.panDob ? formatDate(formData.panDob) : (uploadResponse.extracted_data?.pan?.dob || null),
-          raw_text: uploadResponse.extracted_data?.pan?.raw_text || ''
-        }
-      }
-
-      // Store data using /api/v1/store
-      const storeFormData = new FormData()
-      
-      // passport_urls should be a JSON array string
-      storeFormData.append('passport_urls', JSON.stringify(passportUrls))
-      
-      // pan_url is a single URL string
-      storeFormData.append('pan_url', panUrl)
-      
-      // extracted_data as JSON string
-      storeFormData.append('extracted_data', JSON.stringify(extractedData))
-      
-      // Add email and mobileNo
-      storeFormData.append('email', formData.email || '')
-      storeFormData.append('mobileNo', formData.phoneNumber || '')
-
-      console.log('Storing data:', {
-        passport_urls: passportUrls,
-        pan_url: panUrl,
-        extracted_data: extractedData,
-        email: formData.email,
-        mobileNo: formData.phoneNumber
-      })
-
-      const response = await fetch(`${baseUrl}/api/v1/store`, {
-        method: 'POST',
-        body: storeFormData
-      })
-
-      if (!response.ok && response.status !== 200) {
-        let errorMessage = `HTTP error! status: ${response.status}`
-        try {
-          const errorData = await response.json()
-          console.error('Store API Error Response:', errorData)
-          // Handle different error response formats
-          if (errorData.detail) {
-            // FastAPI style errors
-            if (Array.isArray(errorData.detail)) {
-              errorMessage = errorData.detail.map(err => err.msg || JSON.stringify(err)).join(', ')
-            } else {
-              errorMessage = errorData.detail
-            }
-          } else if (errorData.message) {
-            errorMessage = errorData.message
-          } else if (errorData.error) {
-            errorMessage = errorData.error
-          } else {
-            errorMessage = JSON.stringify(errorData)
-          }
-        } catch (e) {
-          const text = await response.text()
-          console.error('Error response text:', text)
-          errorMessage = text || errorMessage
-        }
-        throw new Error(errorMessage)
-      }
-
-      const result = await response.json()
-      console.log('Store result:', result)
+      // Call API service
+      const result = await storeApplication(formData, uploadResponse)
       
       setIsSubmitting(false)
       setShowSuccess(true)
@@ -848,7 +674,7 @@ const Home = () => {
                 <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                View Applications
+                View Profile
               </button>
             </div>
           </div>

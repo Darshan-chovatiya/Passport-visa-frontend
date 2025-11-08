@@ -2,8 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import { ArrowLeft, Search, Loader2, FileText, Eye, X, FileCheck, CreditCard, Mail, Loader } from 'lucide-react'
-
-const BASE_URL = 'http://visa.itfuturz.in/api/v1'
+import { getDocuments, getDocumentById } from '../services/api'
 
 function ViewApplications() {
   const navigate = useNavigate()
@@ -23,16 +22,10 @@ function ViewApplications() {
   })
 
   // Fetch applications list
-  const fetchApplications = async (page = 1) => {
+  const fetchApplications = async (page = 1, search = '') => {
     try {
       setLoading(true)
-      const response = await fetch(`${BASE_URL}/documents?page=${page}&page_size=${pageSize}`)
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch applications')
-      }
-      
-      const data = await response.json()
+      const data = await getDocuments(page, pageSize, search)
       setApplications(data.documents || [])
       setPagination({
         total: data.total || 0,
@@ -61,13 +54,7 @@ function ViewApplications() {
   const fetchApplicationDetails = async (documentId) => {
     try {
       setLoadingDetails(true)
-      const response = await fetch(`${BASE_URL}/documents/${documentId}`)
-      
-      if (!response.ok) {
-        throw new Error('Failed to fetch application details')
-      }
-      
-      const data = await response.json()
+      const data = await getDocumentById(documentId)
       setSelectedApplication(data)
       setShowModal(true)
     } catch (error) {
@@ -87,22 +74,20 @@ function ViewApplications() {
     }
   }
 
+  // Fetch data when page or search changes (with debouncing for search)
   useEffect(() => {
-    fetchApplications(currentPage)
-  }, [currentPage])
+    const timeoutId = setTimeout(() => {
+      // If search changed, reset to page 1 first
+      if (currentPage !== 1) {
+        setCurrentPage(1)
+        return // Will trigger another effect when page changes
+      }
+      // Fetch with current page and search
+      fetchApplications(currentPage, searchQuery)
+    }, searchQuery ? 700 : 0) // Debounce search queries by 500ms
 
-  // Filter applications based on search query
-  const filteredApplications = applications.filter(app => {
-    if (!searchQuery) return true
-    const query = searchQuery.toLowerCase()
-    return (
-      (app.name && app.name.toLowerCase().includes(query)) ||
-      (app.passport_number && app.passport_number.toLowerCase().includes(query)) ||
-      (app.pan_number && app.pan_number.toLowerCase().includes(query)) ||
-      (app.email && app.email.toLowerCase().includes(query)) ||
-      (app.mobileNo && app.mobileNo.toLowerCase().includes(query))
-    )
-  })
+    return () => clearTimeout(timeoutId)
+  }, [currentPage, searchQuery])
 
   // Format date
   const formatDate = (dateString) => {
@@ -157,8 +142,8 @@ function ViewApplications() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="sm:flex items-center justify-between ">
             <div>
-              <h1 className="text-2xl font-semibold text-gray-900">Visa Applications</h1>
-              <p className="mt-1 text-sm text-gray-600">View and manage all visa applications</p>
+              <h1 className="text-2xl font-semibold text-gray-900">Visa Profile</h1>
+              <p className="mt-1 text-sm text-gray-600">View and manage all visa Profile</p>
             </div>
             <button
               onClick={() => navigate('/')}
@@ -193,16 +178,16 @@ function ViewApplications() {
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-12">
             <div className="flex flex-col items-center justify-center">
               <Loader2 className="animate-spin h-12 w-12 text-blue-600 mb-4" />
-              <p className="text-sm font-medium text-gray-700">Loading applications...</p>
+              <p className="text-sm font-medium text-gray-700">Loading Profile...</p>
             </div>
           </div>
-        ) : filteredApplications.length === 0 ? (
+        ) : applications.length === 0 ? (
           <div className="bg-white rounded-lg border border-gray-200 shadow-sm p-12">
             <div className="flex flex-col items-center justify-center">
               <FileText className="w-16 h-16 text-gray-400 mb-4" />
-              <p className="text-lg font-medium text-gray-900 mb-1">No applications found</p>
+              <p className="text-lg font-medium text-gray-900 mb-1">No Profile found</p>
               <p className="text-sm text-gray-500">
-                {searchQuery ? 'Try adjusting your search query' : 'No applications have been submitted yet'}
+                {searchQuery ? 'Try adjusting your search query' : 'No Profile have been submitted yet'}
               </p>
             </div>
           </div>
@@ -238,7 +223,7 @@ function ViewApplications() {
                     </tr>
                   </thead>
                   <tbody className="bg-white divide-y divide-gray-200">
-                    {filteredApplications.map((app) => (
+                    {applications.map((app) => (
                       <tr key={app.id} className="hover:bg-gray-50 transition-colors">
                         <td className="px-6 py-4 whitespace-nowrap">
                           <div className="text-sm font-medium text-gray-900">{app.name || 'N/A'}</div>
@@ -275,12 +260,12 @@ function ViewApplications() {
             </div>
 
             {/* Pagination */}
-            {!searchQuery && pagination.total_pages > 1 && (
+            {pagination.total_pages > 1 && (
               <div className="mt-6 flex items-center justify-between">
                 <div className="text-sm text-gray-700">
                   Showing <span className="font-medium">{(currentPage - 1) * pageSize + 1}</span> to{' '}
                   <span className="font-medium">{Math.min(currentPage * pageSize, pagination.total)}</span> of{' '}
-                  <span className="font-medium">{pagination.total}</span> applications
+                  <span className="font-medium">{pagination.total}</span> Profile
                 </div>
                 <div className="flex items-center space-x-2">
                   <button
@@ -346,7 +331,7 @@ function ViewApplications() {
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6">
                 {/* Header */}
                 <div className="flex items-center justify-between mb-6">
-                  <h3 className="text-lg font-semibold text-gray-900">Application Details</h3>
+                  <h3 className="text-lg font-semibold text-gray-900">Profile Details</h3>
                   <button
                     onClick={() => setShowModal(false)}
                     className="text-gray-400 hover:text-gray-500"
