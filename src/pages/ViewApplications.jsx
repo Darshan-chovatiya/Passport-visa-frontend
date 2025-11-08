@@ -195,10 +195,10 @@ function ViewApplications() {
             </div>
             <button
               onClick={() => navigate('/')}
-              className="mt-3 sm:mt-0 inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+              className="mt-3 sm:mt-0 w-full justify-center sm:w-fit inline-flex items-center px-4 py-2 border border-gray-300 rounded-md text-sm font-medium text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
             >
               <ArrowLeft className="w-4 h-4 mr-2" />
-              Back to Application
+              Back to Home
             </button>
           </div>
         </div>
