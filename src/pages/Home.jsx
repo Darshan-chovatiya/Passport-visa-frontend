@@ -1,7 +1,9 @@
 import { useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 
 const Home = () => {
+  const navigate = useNavigate()
   const [passportFiles, setPassportFiles] = useState([]) // Array to support up to 2 passport files
   const [panFile, setPanFile] = useState(null)
   const [isExtracting, setIsExtracting] = useState(false)
@@ -353,7 +355,7 @@ const Home = () => {
     setIsExtracting(true)
     
     try {
-      const baseUrl = 'https://t9hr21z3-8000.inc1.devtunnels.ms'
+      const baseUrl = 'http://visa.itfuturz.in'
       
       // Prepare FormData for upload API
       const uploadFormData = new FormData()
@@ -613,7 +615,7 @@ const Home = () => {
         return `${day}/${month}/${year}`
       }
 
-      const baseUrl = 'https://t9hr21z3-8000.inc1.devtunnels.ms'
+      const baseUrl = 'http://visa.itfuturz.in'
 
       // Get URLs from upload response
       // Response structure: { passport_urls: [...], pan_url: "...", extracted_data: {...} }
@@ -832,25 +834,28 @@ const Home = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-          <div className="flex items-center justify-between">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="sm:flex items-center justify-between">
             <div>
               <h1 className="text-2xl font-semibold text-gray-900">Visa Application Portal</h1>
               <p className="mt-1 text-sm text-gray-600">Complete your visa application by uploading documents and filling the form</p>
             </div>
-            <div className="hidden sm:block">
-              <div className="flex items-center space-x-2 text-sm text-gray-500">
-                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+            <div className="mt-4 sm:mt-0">
+              <button
+                onClick={() => navigate('/applications')}
+                className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 transition-colors"
+              >
+                <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                 </svg>
-                <span>Secure Portal</span>
-              </div>
+                View Applications
+              </button>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Progress Steps */}
         <div className="mb-8">
           <div className="flex items-center justify-center">
