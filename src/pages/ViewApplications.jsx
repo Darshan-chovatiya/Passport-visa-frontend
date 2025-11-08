@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
 import { ArrowLeft, Search, Loader2, FileText, Eye, X, FileCheck, CreditCard, Mail, Loader } from 'lucide-react'
@@ -20,6 +20,9 @@ function ViewApplications() {
     page: 1,
     page_size: 10
   })
+  const searchTimeoutRef = useRef(null)
+  const prevSearchQueryRef = useRef('')
+  const prevPageRef = useRef(1)
 
   // Fetch applications list
   const fetchApplications = async (page = 1, search = '') => {
@@ -31,7 +34,7 @@ function ViewApplications() {
         total: data.total || 0,
         total_pages: data.total_pages || 0,
         page: data.page || 1,
-        page_size: data.page_size || 10
+        page_size: data.page_size || 3
       })
     } catch (error) {
       console.error('Error fetching applications:', error)
@@ -74,20 +77,65 @@ function ViewApplications() {
     }
   }
 
-  // Fetch data when page or search changes (with debouncing for search)
+  // Handle search changes with debouncing - reset to page 1 when search changes
   useEffect(() => {
-    const timeoutId = setTimeout(() => {
-      // If search changed, reset to page 1 first
-      if (currentPage !== 1) {
-        setCurrentPage(1)
-        return // Will trigger another effect when page changes
+    // Check if search actually changed
+    const searchChanged = searchQuery !== prevSearchQueryRef.current
+    
+    if (searchChanged) {
+      // Clear any existing timeout
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
       }
-      // Fetch with current page and search
-      fetchApplications(currentPage, searchQuery)
-    }, searchQuery ? 700 : 0) // Debounce search queries by 500ms
+      
+      // Debounce search and reset to page 1
+      searchTimeoutRef.current = setTimeout(() => {
+        prevSearchQueryRef.current = searchQuery
+        if (currentPage !== 1) {
+          setCurrentPage(1)
+        } else {
+          // Already on page 1, fetch directly
+          fetchApplications(1, searchQuery)
+        }
+      }, 700)
+    }
 
-    return () => clearTimeout(timeoutId)
+    return () => {
+      if (searchTimeoutRef.current) {
+        clearTimeout(searchTimeoutRef.current)
+      }
+    }
+  }, [searchQuery])
+
+  // Fetch data when page changes (but not when search is being debounced)
+  useEffect(() => {
+    // Check if page changed (not from search reset)
+    const pageChanged = currentPage !== prevPageRef.current
+    const searchChanged = searchQuery !== prevSearchQueryRef.current
+    
+    // Only fetch if:
+    // 1. Page changed AND search hasn't changed (user clicked pagination)
+    // 2. OR we're on initial mount
+    if (pageChanged && !searchChanged) {
+      prevPageRef.current = currentPage
+      fetchApplications(currentPage, searchQuery)
+    } else if (pageChanged && searchChanged && currentPage === 1) {
+      // Page was reset to 1 due to search change - fetch after debounce
+      prevPageRef.current = currentPage
+      const timeoutId = setTimeout(() => {
+        fetchApplications(1, searchQuery)
+      }, 50) // Small delay to ensure search ref is updated
+      
+      return () => clearTimeout(timeoutId)
+    }
   }, [currentPage, searchQuery])
+
+  // Initial fetch on mount
+  useEffect(() => {
+    prevPageRef.current = 1
+    prevSearchQueryRef.current = ''
+    fetchApplications(1, '')
+  }, [])
 
   // Format date
   const formatDate = (dateString) => {
