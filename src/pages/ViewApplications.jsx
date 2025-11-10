@@ -1,8 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import Swal from 'sweetalert2'
-import { ArrowLeft, Search, Loader2, FileText, Eye, X, FileCheck, CreditCard, Mail, Loader } from 'lucide-react'
-import { getDocuments, getDocumentById } from '../services/api'
+import { ArrowLeft, Search, Loader2, FileText, Eye, X, FileCheck, CreditCard, Mail, Loader, Trash2 } from 'lucide-react'
+import { getDocuments, getDocumentById, deleteDocument } from '../services/api'
 
 function ViewApplications() {
   const navigate = useNavigate()
@@ -176,6 +176,57 @@ function ViewApplications() {
     fetchApplicationDetails(application.id)
   }
 
+  const handleDelete = async (application) => {
+    const result = await Swal.fire({
+      title: 'Are you sure?',
+      text: `Do you want to delete the profile for ${application.name || 'this application'}?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'Yes, delete it!',
+      cancelButtonText: 'Cancel'
+    })
+
+    if (result.isConfirmed) {
+      try {
+        await deleteDocument(application.id)
+        
+        Swal.fire({
+          icon: 'success',
+          title: 'Deleted!',
+          text: 'Profile has been deleted successfully.',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true
+        })
+
+        // Refresh the applications list
+        // If we're on a page that might become empty after deletion, go to previous page
+        const remainingCount = applications.length - 1
+        if (remainingCount === 0 && currentPage > 1) {
+          setCurrentPage(currentPage - 1)
+        } else {
+          fetchApplications(currentPage, searchQuery)
+        }
+      } catch (error) {
+        console.error('Error deleting application:', error)
+        Swal.fire({
+          icon: 'error',
+          title: 'Error',
+          text: error.message || 'Failed to delete profile. Please try again.',
+          toast: true,
+          position: 'top-end',
+          showConfirmButton: false,
+          timer: 3000,
+          timerProgressBar: true
+        })
+      }
+    }
+  }
+
   const handlePageChange = (newPage) => {
     if (newPage >= 1 && newPage <= pagination.total_pages) {
       setCurrentPage(newPage)
@@ -292,13 +343,22 @@ function ViewApplications() {
                           <div className="text-sm text-gray-500">{formatDate(app.uploaded_at)}</div>
                         </td>
                         <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                          <button
-                            onClick={() => handleViewDetails(app)}
-                            className="text-blue-600 cursor-pointer hover:text-blue-900 inline-flex items-center justify-center p-2 rounded-md hover:bg-blue-50 transition-colors"
-                            title="View Details"
-                          >
-                            <Eye className="w-5 h-5" />
-                          </button>
+                          <div className="flex items-center justify-end gap-2">
+                            <button
+                              onClick={() => handleViewDetails(app)}
+                              className="text-blue-600 cursor-pointer hover:text-blue-900 inline-flex items-center justify-center p-2 rounded-md hover:bg-blue-50 transition-colors"
+                              title="View Details"
+                            >
+                              <Eye className="w-5 h-5" />
+                            </button>
+                            <button
+                              onClick={() => handleDelete(app)}
+                              className="text-red-600 cursor-pointer hover:text-red-900 inline-flex items-center justify-center p-2 rounded-md hover:bg-red-50 transition-colors"
+                              title="Delete Profile"
+                            >
+                              <Trash2 className="w-5 h-5" />
+                            </button>
+                          </div>
                         </td>
                       </tr>
                     ))}

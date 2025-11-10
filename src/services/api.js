@@ -264,3 +264,38 @@ export const getDocumentById = async (documentId) => {
   }
 }
 
+/**
+ * Delete a document by ID
+ * @param {string} documentId - Document ID to delete
+ * @returns {Promise<Object>} Response containing success message and deleted ID
+ */
+export const deleteDocument = async (documentId) => {
+  try {
+    const response = await fetch(`${BASE_URL}/api/v1/documents/${documentId}`, {
+      method: 'DELETE'
+    })
+    
+    if (!response.ok) {
+      let errorMessage = `HTTP error! status: ${response.status}`
+      try {
+        const errorData = await response.json()
+        if (errorData.detail) {
+          errorMessage = errorData.detail
+        } else if (errorData.message) {
+          errorMessage = errorData.message
+        }
+      } catch (e) {
+        const text = await response.text()
+        errorMessage = text || errorMessage
+      }
+      throw new Error(errorMessage)
+    }
+    
+    const data = await response.json()
+    return data
+  } catch (error) {
+    console.error('Error in deleteDocument:', error)
+    throw error
+  }
+}
+
